@@ -11,6 +11,9 @@
 				<div class="col-sm-6 col-sm-offset-3" style="text-align: center;">
 					<img src="/logo.png">
 					<h3 style="position: relative; bottom: 25px;">Position Paper Submission</h3>
+					<div style="text-align:left;">
+						Position papers are due March 1. To review the necessary content and format, check the <a href="http://www.unausa.org/global-classrooms-model-un/how-to-participate/model-un-preparation/position-papers">UNA-USA Position Paper guidelines</a>.
+					</div><br>
 				</div>
 			</div>
 			<div class="row">

@@ -2,6 +2,8 @@
 require_once __DIR__.'/../vendor/autoload.php';
 use MUNI\Templating;
 use MUNI\Logger;
+use Symfony\Component\HttpFoundation\Response;
+
 $app = new Silex\Application();
 
 $app['filedirectory'] = __DIR__.'/../files/';
@@ -25,6 +27,69 @@ $app['log'] = function () {
 $app->get('/submit-paper', function () use ($app) {
     // on get, show submit paper tpl
     return $app['templating']->render('submitpaper.tpl');
+});
+
+$app->get('/view-paper/{id}', function($id) use($app) {
+	$id = intval($id);
+	if($id <= 0) { return 'nah'; }
+	$paperFile = $app['db']->query('SELECT file FROM papers WHERE id=' . $id)->fetch()['file'];
+	$extension = strtolower(substr($paperFile, strrpos($paperFile, '.') + 1));
+	$mimeType = '';
+	switch($extension) {
+		case 'docx':
+			$mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+			break;
+		case 'doc':
+			$mimeType = 'application/msword';
+			break;
+		case 'pdf':
+			$mimeType = 'application/pdf';
+			break;
+		case 'rtf':
+			$mimeType = 'application/rtf';
+			break;
+	}
+
+	$fileData = file_get_contents($app['filedirectory'] . DIRECTORY_SEPARATOR . $paperFile);
+	$response = new Response(); 
+	$response->headers->set('Content-disposition', 'attachment; fileName=' . $paperFile);
+	$response->headers->set('Content-type', $mimeType);
+	$response->setContent($fileData);
+	return $response;
+});
+
+$app->get('/list-papers', function() use($app) {
+	$temp = $app['db']->query('SELECT id, file, delegate, hs, committee, position FROM papers ORDER BY committee, position ASC')->fetchAll(PDO::FETCH_ASSOC);
+	$indexed = [];
+	foreach($temp as $val) {
+		if(!isset($indexed[$val['committee']])) {
+			$indexed[$val['committee']] = [];
+		}
+		$indexed[$val['committee']][] = $val;
+	}
+	if(isset($indexed['WCW'])) {
+		$indexed['CSW'] = $indexed['WCW'];
+		unset($indexed['WCW']);
+	}
+	
+	$preferredOrder = ['DISEC', 'ECOFIN', 'SOCHUM', 'SPECPOL', 'UNHRC', 'CSW', 'ICC', 'IPD', 'Other'];
+	uksort($indexed, function($a, $b) use($preferredOrder) {
+		$keyA = array_search($a, $preferredOrder, true);
+		$keyB = array_search($b, $preferredOrder, true);
+
+		if($keyA === false || $keyB === false) {
+			return 0;
+		}
+
+		if($keyA > $keyB) {
+			return 1;
+		} elseif($keyB > $keyA) {
+			return -1;
+		}
+
+		return 0;
+	});
+	return $app['templating']->render('listpapers.tpl', ['papers' => $indexed]);
 });
 
 $app->post('/submit-paper', function () use ($app) {
